@@ -87,7 +87,7 @@ void inc_global_jid() {
 
 void process_line(char *s) {
   char *token;
-  //int hash_idx;
+  int hash_idx;
   job_t *new_job = (job_t *) malloc(sizeof(job_t));
 
   /* Increment the global job counter */
@@ -103,11 +103,16 @@ void process_line(char *s) {
     token = strtok(NULL, " \t");
   }
 
+  /* Displaying for now TODO: Remove*/
   node_t *head = new_job->command.head;
   while (head != NULL) {  
     mysh_printf("%s ", (char *) head->data); 
     head = head->next;
   }
+  
+  hash_idx = hash_func(new_job->jid);
+  ll_initialize(&job_hash[hash_idx]);
+  ll_insert_tail(&job_hash[hash_idx], new_job);
 }
 
 int main(int argc, char *argv[])
