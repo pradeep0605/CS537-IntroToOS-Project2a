@@ -18,4 +18,5 @@ void ll_delete_tail(linked_list_t *ll);
 void ll_delete_node(linked_list_t *ll, void *data);
 void ll_free(linked_list_t *ll);
 void ll_display(linked_list_t *ll);
+int ll_length(linked_list_t *ll);
 

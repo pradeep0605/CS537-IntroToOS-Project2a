@@ -123,3 +123,12 @@ void ll_display(linked_list_t *ll) {
 
 
 
+int ll_length(linked_list_t *ll) {
+  node_t *head = ll->head;
+  int count = 0;
+  while (head != NULL) {
+    count ++;
+    head = head->next;
+  }
+  return count;
+}
