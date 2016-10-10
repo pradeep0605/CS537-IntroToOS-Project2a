@@ -40,25 +40,46 @@ char *shell = "mysh> ";
 volatile int global_jid = 0;
 pthread_mutex_t jobs_mutex = PTHREAD_MUTEX_INITIALIZER;
 linked_list_t job_hash[HASH_SIZE + 1] = {{0, 0}};
+FILE *infile = NULL;
 
 /* Free all strings and linked lists before exiting */
-void exit_gracefully() {
+void exit_gracefully(int exit_val) {
   int i = 0;
-  node_t *itr;
   for (; i < HASH_SIZE + 1; ++i) {
     linked_list_t *list = &job_hash[i];
-    for_each_node(itr, list) {
-      free(itr->data);
+    node_t *node_itr;
+
+    for_each_node(node_itr, list) {
+      job_t *job = (job_t *) node_itr->data;
+      node_t *cmd_itr;
+      /* If a job is not dead, then wait for it to die */
+      if (waitpid(job->pid, NULL, WNOHANG) == 0) { /* child not dead */
+        /* wait for it to die */
+        waitpid(job->pid, NULL, 0);
+      }
+
+      /* Free all the linked list of strings that held the command */
+      for_each_node(cmd_itr, &job->command) {
+        free(cmd_itr->data);
+      }
+      /* Free the linked list of command */
+      ll_free(&job->command);
+      /* Free the job */
+      free(job);
     }
+    /* Free the linked list of jobs in this hash entery */
     ll_free(list);
   }
-  exit(0);
+  if (infile != NULL) {
+    fclose(infile);
+  }
+  exit(exit_val);
 }
 
 void read_line(char *s, FILE *infile) {
   if (fgets(s, STDIN_SIZE, infile) == NULL) {
     /* if Nothing to read */
-      exit_gracefully();
+      exit_gracefully(0);
   }
   /* Remove Newline */
   s[strlen(s) - 1] = '\0';
@@ -132,7 +153,7 @@ bool compare(void *key, void *cmp) {
 /* Compare Function End */
 
 
-int execute_inbuilt_command(char **args, int nargs) {
+int execute_inbuilt_command(char **args, int nargs, job_t *job) {
   char *cmd = args[0];
   char *arg = args[1];
   int query_jid = -1;
@@ -164,8 +185,9 @@ int execute_inbuilt_command(char **args, int nargs) {
     }
     goto success;
   } else if (strcmp(cmd, "exit") == 0) {
-    exit_gracefully();
-
+    ll_free_with_data(&job->command);
+    free(job);
+    exit_gracefully(0);
   } else if (strcmp(cmd, "myw") == 0) {
     if (arg[strlen(args[1]) - 1] == '&') {
       arg[strlen(args[1]) - 1] = '\0';
@@ -231,6 +253,8 @@ void execute_job(job_t *job) {
 
   nargs = ll_size(&job->command);
   if (nargs == 0) {
+    ll_delete_node(&job_hash[hash_func(job->jid)], job);
+    free(job);
     return;
   }
   args = (char **) malloc (sizeof(char *) * (nargs + 1));
@@ -246,13 +270,15 @@ void execute_job(job_t *job) {
        * as this is an inbuild command */
       dec_global_jid();
       ll_delete_node(&job_hash[hash_func(job->jid)], job);
-      if (execute_inbuilt_command(args, nargs) != 0) {
+      if (execute_inbuilt_command(args, nargs, job) != 0) {
         /* As this command couldn't run as an inbuilt command, run this as an
          * external command */
          inc_global_jid();
          ll_insert_head(&job_hash[hash_func(job->jid)], job);
       } else {
-        return;
+        ll_free_with_data(&job->command);
+        free(job);
+        goto end;
       }
   }
 
@@ -262,7 +288,7 @@ void execute_job(job_t *job) {
     /* Child Process */
     execvp(args[0], args);
     mysh_perror("%s: Command not found\n", args[0]);
-    exit(1);
+    exit_gracefully(1);
   } else {
     /* Parent Process */
     job->pid = pid;
@@ -272,21 +298,25 @@ void execute_job(job_t *job) {
       }
     }
   }
+end:
+  free(args);
 }
 
 void process_line(char *s, bool batch_mode) {
   char *token;
   int hash_idx;
-  job_t *new_job = (job_t *) malloc(sizeof(job_t));
-
+  job_t *new_job;
 
   /* Process the tokens and add then to the list */
   token = strtok(s, " \t");
 
   /* Nothing to Process if no commands were entered */
   if (token == NULL) {
-    return;
+    goto end;
   }
+
+  new_job = (job_t *) malloc(sizeof(job_t));
+
   /* Increment the global job counter */
   inc_global_jid();
   new_job->jid = get_global_jid();
@@ -304,13 +334,14 @@ void process_line(char *s, bool batch_mode) {
   ll_insert_head(&job_hash[hash_idx], new_job);
 
   execute_job(new_job);
+end:
+  return;
 }
 
 int main(int argc, char *argv[]) {
   char input[STDIN_SIZE] = {0};
   if (argc == 2) {
     /* Work on batch mode */
-    FILE *infile;
     infile = fopen(argv[1], "r");
     if (infile == NULL) {
       mysh_perror("Error: Cannot open file %s\n", argv[1]);
@@ -318,14 +349,18 @@ int main(int argc, char *argv[]) {
     }
 
     while (1) {
-      read_line(input, infile);
       /* batch mode = true */
+      read_line(input, infile);
       mysh_printf("%s\n", input);
+      if (strlen(input) > 512) {
+        mysh_perror("An error has occurred\n");
+        continue;
+      }
       process_line(input, true);
     }
     goto success;
   } else if (argc > 2) {
-    mysh_printf("Usage: mysh [batchFile]\n");
+    mysh_perror("Usage: mysh [batchFile]\n");
     goto fail;
   }
 
@@ -333,7 +368,7 @@ int main(int argc, char *argv[]) {
     mysh_printf("%s", shell);
     read_line(input, stdin);
     if (strlen(input) > 512) {
-      mysh_perror("Command more than 512 characters\n");
+      mysh_perror("An error has occurred\n");
       continue;
     }
     /* Process the line and execute the job if valid */
@@ -342,7 +377,8 @@ int main(int argc, char *argv[]) {
   }
 
 success:
-  exit(0);
+  exit_gracefully(0);
 fail:
-  exit(1);
+  exit_gracefully(1);
+  return 0;
 }

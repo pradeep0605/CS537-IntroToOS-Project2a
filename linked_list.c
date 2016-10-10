@@ -119,6 +119,25 @@ void ll_free(linked_list_t *ll) {
   while (itr != NULL) {
       del_node = itr;
       itr = itr->next;
+      del_node->next = del_node->prev = NULL;
+      free(del_node);
+  }
+
+  ll->head = ll->tail = NULL;
+  return;
+}
+
+void ll_free_with_data(linked_list_t *ll) {
+  node_t *itr = ll->head;
+  node_t *del_node;
+  if (itr == NULL)
+    return;
+
+  while (itr != NULL) {
+      del_node = itr;
+      itr = itr->next;
+      del_node->next = del_node->prev = NULL;
+      free(del_node->data);
       free(del_node);
   }
 
