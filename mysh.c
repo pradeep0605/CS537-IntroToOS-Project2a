@@ -15,7 +15,7 @@ typedef unsigned int bool;
 #define HASH_SIZE (1000)
 #define STDIN_SIZE (1000)
 #define USEC_FROM_TIMEVAL(timeval) \
-  ((unsigned long int) 1000000 * timeval.tv_sec + timeval.tv_usec) 
+  ((unsigned long int) 1000000 * timeval.tv_sec + timeval.tv_usec)
 #define mysh_printf(format, ...) \
   sprintf(output, format, ##__VA_ARGS__); \
   if (write(STDOUT_FILENO, output, strlen(output)) == -1) \
@@ -23,7 +23,7 @@ typedef unsigned int bool;
 
 #define mysh_perror(format, ...) \
   sprintf(output, format, ##__VA_ARGS__); \
-  if (write(STDOUT_FILENO, output, strlen(output)) == -1) \
+  if (write(STDERR_FILENO, output, strlen(output)) == -1) \
     perror("Error in writing to STDERR\n");
 
 typedef struct job {
@@ -37,18 +37,18 @@ typedef struct job {
 /* Globals */
 char output[STDIN_SIZE] = {0};
 char *shell = "mysh> ";
-volatile int global_jid = 0; 
+volatile int global_jid = 0;
 pthread_mutex_t jobs_mutex = PTHREAD_MUTEX_INITIALIZER;
-linked_list_t job_hash[HASH_SIZE + 1] = {{0, 0,}};
+linked_list_t job_hash[HASH_SIZE + 1] = {{0, 0}};
 
 /* Free all strings and linked lists before exiting */
 void exit_gracefully() {
   int i = 0;
   node_t *itr;
-  for(; i < HASH_SIZE + 1; ++i) {
+  for (; i < HASH_SIZE + 1; ++i) {
     linked_list_t *list = &job_hash[i];
     for_each_node(itr, list) {
-      free(itr->data);     
+      free(itr->data);
     }
     ll_free(list);
   }
@@ -143,7 +143,7 @@ int execute_inbuilt_command(char **args, int nargs) {
     for (; i < get_global_jid() || i < HASH_SIZE; ++i) {
       linked_list_t *ll;
       ll = &job_hash[hash_func(i)];
-      for_each_node (itr, ll) {
+      for_each_node(itr, ll) {
         job_t *job = (job_t *) itr->data;
         if (job->bg) {
           if (waitpid(job->pid, NULL, WNOHANG) == 0) {
@@ -151,9 +151,13 @@ int execute_inbuilt_command(char **args, int nargs) {
             node_t *cmds;
             mysh_printf("%d : ", job->jid);
             for_each_node(cmds, &job->command) {
-              mysh_printf("%s ", (char *) cmds->data);
+              if (cmds->next == NULL) {
+                mysh_printf("%s", (char *) cmds->data);
+              } else {
+                mysh_printf("%s ", (char *) cmds->data);
+              }
             }
-            mysh_printf("\b\n");
+            mysh_printf("\n");
           }
         }
       }
@@ -165,9 +169,9 @@ int execute_inbuilt_command(char **args, int nargs) {
   } else if (strcmp(cmd, "myw") == 0) {
     if (arg[strlen(args[1]) - 1] == '&') {
       arg[strlen(args[1]) - 1] = '\0';
-    }  
+    }
 
-    query_jid = atoi(arg);   
+    query_jid = atoi(arg);
 
     if (query_jid != 0) {
       node_t *job_node;
@@ -176,7 +180,7 @@ int execute_inbuilt_command(char **args, int nargs) {
       job_node = ll_find(&job_hash[hash_func(query_jid)],
           (((void *)0) + query_jid), compare);
       if (job_node == NULL || query_jid > get_global_jid()) {
-        mysh_perror("Invalid jid %d\n", query_jid); 
+        mysh_perror("Invalid jid %d\n", query_jid);
         goto success;
       } else {
         job = (job_t *) job_node->data;
@@ -210,7 +214,7 @@ void execute_job(job_t *job) {
   bool wait_for_job = true;
   char *last_argument = (char *) job->command.tail->data;
   char **args;
-  int nargs, i =0, pid = -1;
+  int nargs, i = 0, pid = -1;
   node_t *itr;
 
   if (last_argument[strlen(last_argument) - 1] == '&') {
@@ -226,8 +230,11 @@ void execute_job(job_t *job) {
   }
 
   nargs = ll_size(&job->command);
+  if (nargs == 0) {
+    return;
+  }
   args = (char **) malloc (sizeof(char *) * (nargs + 1));
-  
+
   for_each_node(itr, &job->command) {
     args[i] = (char *) itr->data;
     i++;
@@ -245,7 +252,7 @@ void execute_job(job_t *job) {
          inc_global_jid();
          ll_insert_head(&job_hash[hash_func(job->jid)], job);
       } else {
-        return; 
+        return;
       }
   }
 
@@ -267,24 +274,24 @@ void execute_job(job_t *job) {
   }
 }
 
-void process_line(char *s) {
+void process_line(char *s, bool batch_mode) {
   char *token;
   int hash_idx;
   job_t *new_job = (job_t *) malloc(sizeof(job_t));
 
-  /* Increment the global job counter */
-  inc_global_jid();
-  new_job->jid = get_global_jid();
-  /* Initialize the comamnd-args list */
-  ll_initialize(&new_job->command);
 
   /* Process the tokens and add then to the list */
   token = strtok(s, " \t");
 
   /* Nothing to Process if no commands were entered */
   if (token == NULL) {
-    return; 
+    return;
   }
+  /* Increment the global job counter */
+  inc_global_jid();
+  new_job->jid = get_global_jid();
+  /* Initialize the comamnd-args list */
+  ll_initialize(&new_job->command);
 
   while (token != NULL) {
     ll_insert_tail(&new_job->command, (void *)strdup(token));
@@ -299,12 +306,23 @@ void process_line(char *s) {
   execute_job(new_job);
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
   char input[STDIN_SIZE] = {0};
   if (argc == 2) {
-    
     /* Work on batch mode */
+    FILE *infile;
+    infile = fopen(argv[1], "r");
+    if (infile == NULL) {
+      mysh_perror("Error: Cannot open file %s\n", argv[1]);
+      goto fail;
+    }
+
+    while (1) {
+      read_line(input, infile);
+      /* batch mode = true */
+      mysh_printf("%s\n", input);
+      process_line(input, true);
+    }
     goto success;
   } else if (argc > 2) {
     mysh_printf("Usage: mysh [batchFile]\n");
@@ -319,7 +337,8 @@ int main(int argc, char *argv[])
       continue;
     }
     /* Process the line and execute the job if valid */
-    process_line(input);
+    /* batch_mode = false */
+    process_line(input, false);
   }
 
 success:

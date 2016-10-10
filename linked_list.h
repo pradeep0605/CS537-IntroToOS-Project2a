@@ -4,7 +4,7 @@
 typedef unsigned int bool;
 
 #define for_each_node(itr, ll) \
-    for((itr) = (ll)->head; (itr); (itr) = (itr)->next) \
+    for ((itr) = (ll)->head; (itr); (itr) = (itr)->next) \
 
 typedef struct node {
   struct node *prev;

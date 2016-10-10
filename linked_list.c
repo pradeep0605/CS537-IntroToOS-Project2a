@@ -46,7 +46,7 @@ void ll_delete_head(linked_list_t *ll) {
   if (ll->head == NULL) {
     return;
   }
-  
+
   del_node = ll->head;
   ll->head = ll->head->next;
   if (ll->head == NULL) {
@@ -55,7 +55,6 @@ void ll_delete_head(linked_list_t *ll) {
     ll->head->prev = NULL;
   }
   free(del_node);
-
 }
 
 void ll_delete_tail(linked_list_t *ll) {
@@ -76,14 +75,14 @@ void ll_delete_tail(linked_list_t *ll) {
 
 void ll_delete_node(linked_list_t *ll, void *key) {
   node_t *itr = ll->head;
-  
+
   if (itr == NULL)
     return;
 
   if (ll->head->data == key) {
     ll_delete_head(ll);
     return;
-  } else if(ll->tail->data == key) {
+  } else if (ll->tail->data == key) {
     ll_delete_tail(ll);
     return;
   }
@@ -140,7 +139,7 @@ int ll_size(linked_list_t *ll) {
   node_t *head = ll->head;
   int count = 0;
   while (head != NULL) {
-    count ++;
+    count++;
     head = head->next;
   }
   return count;
