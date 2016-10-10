@@ -111,26 +111,33 @@ node_t * ll_find(linked_list_t *ll, void *key,
 
 void ll_free(linked_list_t *ll) {
   node_t *itr = ll->head;
+  node_t *del_node;
   if (itr == NULL)
     return;
 
-  for_each_node(itr, ll) {
-      itr->next = itr->prev = NULL;
-      free(itr);
+  while (itr != NULL) {
+      del_node = itr;
+      itr = itr->next;
+      del_node->next = del_node->prev = NULL;
+      free(del_node);
   }
+
   ll->head = ll->tail = NULL;
   return;
 }
 
 void ll_free_with_data(linked_list_t *ll) {
   node_t *itr = ll->head;
+  node_t *del_node;
   if (itr == NULL)
     return;
 
-  for_each_node(itr, ll) {
-      itr->next = itr->prev = NULL;
-      free(itr->data);
-      free(itr);
+  while (itr != NULL) {
+      del_node = itr;
+      itr = itr->next;
+      del_node->next = del_node->prev = NULL;
+      free(del_node->data);
+      free(del_node);
   }
 
   ll->head = ll->tail = NULL;
@@ -148,7 +155,6 @@ void ll_display(linked_list_t *ll) {
 int ll_size(linked_list_t *ll) {
   node_t *itr = ll->head;
   int count = 0;
-  
   for_each_node(itr, ll) {
     count++;
   }

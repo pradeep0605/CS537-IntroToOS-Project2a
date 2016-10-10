@@ -38,14 +38,13 @@ typedef struct job {
 char output[STDIN_SIZE] = {0};
 char *shell = "mysh> ";
 volatile int global_jid = 0;
-pthread_mutex_t jobs_mutex = PTHREAD_MUTEX_INITIALIZER;
 linked_list_t job_hash[HASH_SIZE + 1] = {{0, 0}};
 FILE *infile = NULL;
 
 /* Free all strings and linked lists before exiting */
 void exit_gracefully(int exit_val) {
   int i = 0;
-  for (; i < HASH_SIZE + 1; ++i) {
+  for (; i <= HASH_SIZE; ++i) {
     linked_list_t *list = &job_hash[i];
     node_t *node_itr;
 
@@ -78,7 +77,7 @@ void exit_gracefully(int exit_val) {
 
 void read_line(char *s, FILE *infile) {
   if (fgets(s, STDIN_SIZE, infile) == NULL) {
-    /* if Nothing to read */
+    /* if Nothing to read (EOF or ctrl+d */
       exit_gracefully(0);
   }
   /* Remove Newline */
@@ -161,7 +160,8 @@ int execute_inbuilt_command(char **args, int nargs, job_t *job) {
   if (strcmp(cmd, "j") == 0) {
     int i = 0;
     node_t *itr;
-    for (; i < get_global_jid() || i < HASH_SIZE; ++i) {
+    int N = (get_global_jid() < HASH_SIZE) ? get_global_jid() : HASH_SIZE;
+    for (; i <= N; ++i) {
       linked_list_t *ll;
       ll = &job_hash[hash_func(i)];
       for_each_node(itr, ll) {
@@ -172,6 +172,7 @@ int execute_inbuilt_command(char **args, int nargs, job_t *job) {
             node_t *cmds;
             mysh_printf("%d : ", job->jid);
             for_each_node(cmds, &job->command) {
+              /* This if to avoid extra space after last argument to the cmnd */
               if (cmds->next == NULL) {
                 mysh_printf("%s", (char *) cmds->data);
               } else {
