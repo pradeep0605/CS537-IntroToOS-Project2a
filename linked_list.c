@@ -87,7 +87,7 @@ void ll_delete_node(linked_list_t *ll, void *key) {
     return;
   }
 
-  while (itr->next != NULL) {
+  for_each_node(itr, ll) {
     /* key found ! delete it */
     if (itr->data == key) {
       itr->prev->next = itr->next;
@@ -95,7 +95,6 @@ void ll_delete_node(linked_list_t *ll, void *key) {
       free(itr);
       return;
     }
-    itr = itr->next;
   }
 }
 
@@ -112,33 +111,26 @@ node_t * ll_find(linked_list_t *ll, void *key,
 
 void ll_free(linked_list_t *ll) {
   node_t *itr = ll->head;
-  node_t *del_node;
   if (itr == NULL)
     return;
 
-  while (itr != NULL) {
-      del_node = itr;
-      itr = itr->next;
-      del_node->next = del_node->prev = NULL;
-      free(del_node);
+  for_each_node(itr, ll) {
+      itr->next = itr->prev = NULL;
+      free(itr);
   }
-
   ll->head = ll->tail = NULL;
   return;
 }
 
 void ll_free_with_data(linked_list_t *ll) {
   node_t *itr = ll->head;
-  node_t *del_node;
   if (itr == NULL)
     return;
 
-  while (itr != NULL) {
-      del_node = itr;
-      itr = itr->next;
-      del_node->next = del_node->prev = NULL;
-      free(del_node->data);
-      free(del_node);
+  for_each_node(itr, ll) {
+      itr->next = itr->prev = NULL;
+      free(itr->data);
+      free(itr);
   }
 
   ll->head = ll->tail = NULL;
@@ -147,19 +139,18 @@ void ll_free_with_data(linked_list_t *ll) {
 
 void ll_display(linked_list_t *ll) {
   node_t *itr = ll->head;
-  while (itr != NULL) {
+  for_each_node(itr, ll) {
     printf("%p-> ", itr->data);
-    itr = itr->next;
   }
   printf("\n");
 }
 
 int ll_size(linked_list_t *ll) {
-  node_t *head = ll->head;
+  node_t *itr = ll->head;
   int count = 0;
-  while (head != NULL) {
+  
+  for_each_node(itr, ll) {
     count++;
-    head = head->next;
   }
   return count;
 }
