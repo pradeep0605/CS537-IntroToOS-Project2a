@@ -1,1 +1,10 @@
-  asdf asd fasd fja     l;skdjf ;alksjdf;ljad l; sd  jlksfdj    asdf a                
+sleep 1&
+myw 1
+sleep 2&
+myw 2
+sleep 4&
+myw 3
+sleep 8&
+myw 4
+myw 4
+myw 5

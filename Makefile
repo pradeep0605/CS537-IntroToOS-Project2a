@@ -8,7 +8,7 @@ mysh.o:
 	gcc -Wall -Werror -c mysh.c -o mysh.o
 
 clean:
-	rm mysh; rm *.o
+	rm mysh;
 
 debug:
 	gcc -O -g -Wall -Werror mysh.c linked_list.c -o mysh
