@@ -18,7 +18,7 @@ void ll_insert_head(linked_list_t *ll, void *data) {
   node_t *new = create_new_node(data);
 
   /* If the list is empty */
-  if (ll->head == NULL && ll->tail == NULL) {
+  if (ll->head == NULL || ll->tail == NULL) {
     ll->head = ll->tail = new;
     return;
   }
@@ -31,7 +31,7 @@ void ll_insert_head(linked_list_t *ll, void *data) {
 
 void ll_insert_tail(linked_list_t *ll, void *data) {
   node_t *new = create_new_node(data);
-  if (ll->head == NULL && ll->tail == NULL) {
+  if (ll->head == NULL || ll->tail == NULL) {
     ll->head = ll->tail = new;
     return;
   }
@@ -49,6 +49,11 @@ void ll_delete_head(linked_list_t *ll) {
   
   del_node = ll->head;
   ll->head = ll->head->next;
+  if (ll->head == NULL) {
+    ll->tail = NULL;
+  } else {
+    ll->head->prev = NULL;
+  }
   free(del_node);
 
 }
@@ -61,7 +66,11 @@ void ll_delete_tail(linked_list_t *ll) {
   }
   del_node = ll->tail;
   ll->tail = ll->tail->prev;
-  ll->tail->next = NULL;
+  if (ll->tail == NULL) {
+    ll->head = NULL;
+  } else {
+    ll->tail->next = NULL;
+  }
   free(del_node);
 }
 
@@ -91,6 +100,17 @@ void ll_delete_node(linked_list_t *ll, void *key) {
   }
 }
 
+node_t * ll_find(linked_list_t *ll, void *key,
+  bool (*compare)(void *, void *)) {
+  node_t *itr;
+  for_each_node(itr, ll) {
+    if (compare(key, itr->data) == true) {
+      return itr;
+    }
+  }
+  return NULL;
+}
+
 void ll_free(linked_list_t *ll) {
   node_t *itr = ll->head;
   node_t *del_node;
@@ -116,14 +136,7 @@ void ll_display(linked_list_t *ll) {
   printf("\n");
 }
 
-
-
-
-
-
-
-
-int ll_length(linked_list_t *ll) {
+int ll_size(linked_list_t *ll) {
   node_t *head = ll->head;
   int count = 0;
   while (head != NULL) {
