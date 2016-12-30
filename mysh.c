@@ -77,7 +77,7 @@ void exit_gracefully(int exit_val) {
 
 void read_line(char *s, FILE *infile) {
   if (fgets(s, STDIN_SIZE, infile) == NULL) {
-    /* if Nothing to read (EOF or ctrl+d */
+    /* if Nothing to read (EOF or ctrl+d) */
       exit_gracefully(0);
   }
   /* Remove Newline */
